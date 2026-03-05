@@ -5,10 +5,17 @@ on:
     paths:
       - ec2-assignment-2/**
       - .github/workflows/budget.yaml
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - ec2-assignment-2/**
+      - .github/workflows/budget.yaml
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -62,3 +69,61 @@ jobs:
             }
             printf("Budget check passed: monthly cost %.2f is within cap %.2f\n", cost, cap);
           }'
+
+      - name: Update README budget section
+        if: github.event_name != 'pull_request'
+        run: |
+          python3 - <<'PY'
+          import datetime
+          import json
+          from pathlib import Path
+
+          readme = Path("README.md")
+          infracost = Path("/tmp/infracost.json")
+
+          data = json.loads(infracost.read_text())
+          monthly_cost = data.get("totalMonthlyCost") or "0"
+          generated_at = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+          section = f"""<!-- budget:start -->
+## Potential Budget (ec2-assignment-2)
+
+Estimated monthly cost in `eu-central-1` for the current setup:
+
+| Metric | Value |
+| --- | ---: |
+| **Estimated total** | **{monthly_cost} USD / month** |
+| Budget cap | 20 USD / month |
+| Last updated | {generated_at} |
+
+Notes:
+- Generated automatically by `.github/workflows/budget.yaml` using Infracost.
+- Estimate excludes outbound data transfer spikes, snapshots, and additional resources.
+
+<!-- budget:end -->"""
+
+          content = readme.read_text()
+          start = "<!-- budget:start -->"
+          end = "<!-- budget:end -->"
+
+          if start in content and end in content:
+            before = content.split(start)[0].rstrip()
+            after = content.split(end, 1)[1].lstrip()
+            readme.write_text(f"{before}\n\n{section}\n\n{after}".rstrip() + "\n")
+          else:
+            readme.write_text(content.rstrip() + "\n\n" + section + "\n")
+          PY
+
+      - name: Commit README changes
+        if: github.event_name != 'pull_request'
+        run: |
+          if git diff --quiet README.md; then
+            echo "No README changes to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore: update README budget estimate"
+          git push
