@@ -9,9 +9,9 @@ Estimated monthly cost in `eu-central-1` for the current setup:
 
 | Metric | Value |
 | --- | ---: |
-| **Estimated total** | **14.35 USD / month** |
+| **Estimated total** | **11.972 USD / month** |
 | Budget cap | 20 USD / month |
-| Last updated | Manual seed value |
+| Last updated | 2026-03-05 15:37 UTC |
 
 Notes:
 - Generated automatically by `.github/workflows/budget.yaml` using Infracost.
