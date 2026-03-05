@@ -74,45 +74,47 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           python3 - <<'PY'
-            import datetime
-            import json
-            import textwrap
-            from pathlib import Path
+          import datetime
+          import json
+          import textwrap
+          from pathlib import Path
 
-            readme = Path("README.md")
-            infracost = Path("/tmp/infracost.json")
+          readme = Path("README.md")
+          infracost = Path("/tmp/infracost.json")
 
-            data = json.loads(infracost.read_text())
-            monthly_cost = data.get("totalMonthlyCost") or "0"
-            generated_at = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+          data = json.loads(infracost.read_text())
+          monthly_cost = data.get("totalMonthlyCost") or "0"
+          generated_at = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-            section = textwrap.dedent(f"""<!-- budget:start -->
-            ## Potential Budget (ec2-assignment-2)
+          section = textwrap.dedent(f"""\
+          <!-- budget:start -->
+          ## Potential Budget (ec2-assignment-2)
 
-            Estimated monthly cost in `eu-central-1` for the current setup:
+          Estimated monthly cost in `eu-central-1` for the current setup:
 
-            | Metric | Value |
-            | --- | ---: |
-            | **Estimated total** | **{monthly_cost} USD / month** |
-            | Budget cap | 20 USD / month |
-            | Last updated | {generated_at} |
+          | Metric | Value |
+          | --- | ---: |
+          | **Estimated total** | **{monthly_cost} USD / month** |
+          | Budget cap | 20 USD / month |
+          | Last updated | {generated_at} |
 
-            Notes:
-            - Generated automatically by `.github/workflows/budget.yaml` using Infracost.
-            - Estimate excludes outbound data transfer spikes, snapshots, and additional resources.
+          Notes:
+          - Generated automatically by `.github/workflows/budget.yaml` using Infracost.
+          - Estimate excludes outbound data transfer spikes, snapshots, and additional resources.
 
-            <!-- budget:end -->""").strip()
+          <!-- budget:end -->
+          """).strip()
 
-            content = readme.read_text()
-            start = "<!-- budget:start -->"
-            end = "<!-- budget:end -->"
+          content = readme.read_text()
+          start = "<!-- budget:start -->"
+          end = "<!-- budget:end -->"
 
-            if start in content and end in content:
-              before = content.split(start)[0].rstrip()
-              after = content.split(end, 1)[1].lstrip()
-              readme.write_text(f"{before}\n\n{section}\n\n{after}".rstrip() + "\n")
-            else:
-              readme.write_text(content.rstrip() + "\n\n" + section + "\n")
+          if start in content and end in content:
+            before = content.split(start)[0].rstrip()
+            after = content.split(end, 1)[1].lstrip()
+            readme.write_text(f"{before}\n\n{section}\n\n{after}".rstrip() + "\n")
+          else:
+            readme.write_text(content.rstrip() + "\n\n" + section + "\n")
           PY
 
       - name: Commit README changes
