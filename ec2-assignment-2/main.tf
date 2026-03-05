@@ -15,9 +15,16 @@ resource "aws_flow_log" "vpc-flow-log" {
   log_destination = aws_cloudwatch_log_group.vpc_flow_log.arn
 }
 
+resource "aws_kms_key" "vpc_flow_log_key" {
+  description             = "KMS key for VPC flow log encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+}
+
 resource "aws_cloudwatch_log_group" "vpc_flow_log" {
   name              = "/aws/vpc/flow-logs"
   retention_in_days = 7
+  kms_key_id        = aws_kms_key.vpc_flow_log_key.arn
 }
 
 resource "aws_iam_role" "vpc_flow_log_role" {
@@ -48,7 +55,10 @@ resource "aws_iam_role_policy" "vpc_flow_log_policy" {
         "logs:DescribeLogGroups",
         "logs:DescribeLogStreams"
       ]
-      Resource = "*"
+      Resource = [
+        aws_cloudwatch_log_group.vpc_flow_log.arn,
+        "${aws_cloudwatch_log_group.vpc_flow_log.arn}:*"
+      ]
     }]
   })
 }
