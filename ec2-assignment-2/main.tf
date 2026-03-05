@@ -49,7 +49,6 @@ resource "aws_iam_role_policy" "vpc_flow_log_policy" {
     Statement = [{
       Effect = "Allow"
       Action = [
-        "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents",
         "logs:DescribeLogGroups",
@@ -75,9 +74,14 @@ resource "aws_subnet" "subnet-assignment-2" {
 }
 
 resource "aws_eip" "dev_node_eip" {
-  instance = aws_instance.dev_node.id
-  domain   = "vpc"
+  domain = "vpc"
 }
+
+resource "aws_eip_association" "dev_node_eip_assoc" {
+  instance_id   = aws_instance.dev_node.id
+  allocation_id = aws_eip.dev_node_eip.id
+}
+
 resource "aws_internet_gateway" "internet-gateway-assignment-2" {
   vpc_id = aws_vpc.vpc-assignment-2.id
 
