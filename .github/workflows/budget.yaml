@@ -1,0 +1,64 @@
+name: Terraform Budget Check
+
+on:
+  pull_request:
+    paths:
+      - ec2-assignment-2/**
+      - .github/workflows/budget.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  budget-check:
+    name: Infracost estimate + budget guardrail
+    runs-on: ubuntu-latest
+    env:
+      INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+      BUDGET_CAP_USD: "20"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Infracost API key
+        run: |
+          if [ -z "${INFRACOST_API_KEY}" ]; then
+            echo "INFRACOST_API_KEY is missing. Add it in repository secrets."
+            exit 1
+          fi
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+
+      - name: Generate cost estimate JSON
+        run: |
+          infracost breakdown \
+            --path ec2-assignment-2 \
+            --terraform-var host_os=linux \
+            --format json \
+            --out-file /tmp/infracost.json
+
+      - name: Post/update PR cost comment
+        if: github.event_name == 'pull_request'
+        run: |
+          infracost comment github \
+            --path /tmp/infracost.json \
+            --repo "${{ github.repository }}" \
+            --github-token "${{ secrets.GITHUB_TOKEN }}" \
+            --pull-request "${{ github.event.pull_request.number }}" \
+            --behavior update
+
+      - name: Enforce monthly budget cap
+        run: |
+          MONTHLY_COST=$(jq -r '.totalMonthlyCost // "0"' /tmp/infracost.json)
+          echo "Estimated monthly cost: ${MONTHLY_COST} USD"
+
+          awk -v cost="${MONTHLY_COST}" -v cap="${BUDGET_CAP_USD}" 'BEGIN {
+            if ((cost + 0) > (cap + 0)) {
+              printf("Budget check failed: monthly cost %.2f exceeds cap %.2f\n", cost, cap);
+              exit 1;
+            }
+            printf("Budget check passed: monthly cost %.2f is within cap %.2f\n", cost, cap);
+          }'
